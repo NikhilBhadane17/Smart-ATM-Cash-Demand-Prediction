@@ -1,0 +1,7 @@
+# Project dependencies
+flask
+pandas
+numpy
+scikit-learn
+joblib
+
