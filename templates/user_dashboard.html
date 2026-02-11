@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>User ATM Dashboard</title>
+
+    <!-- Your CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- REQUIRED map height -->
+    <style>
+        #map {
+            height: 400px;
+            width: 100%;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <h1>👤 User ATM Dashboard</h1>
+    <p class="subtitle">Smart ATM Cash Availability Near You</p>
+
+    <!-- SEARCH -->
+    <div class="top-bar">
+        <input type="text" id="searchATM" placeholder="🔍 Search ATM / Location">
+    </div>
+
+    <!-- INFO CARDS -->
+    <div class="cards">
+        <div class="card gradient">
+            <h3>📍 Nearest ATM</h3>
+            <p id="nearestATM">---</p>
+        </div>
+
+        <div class="card gradient-green">
+            <h3>💰 Cash Status</h3>
+            <p id="cashStatus">---</p>
+        </div>
+
+        <div class="card gradient-orange">
+            <h3>⏰ Best Time</h3>
+            <p>10 AM – 12 PM</p>
+        </div>
+    </div>
+
+    <!-- ATM TABLE -->
+    <div class="table-card">
+        <h2>Nearby ATMs</h2>
+        <table id="atmTable">
+            <tr>
+                <th>ATM ID</th>
+                <th>Location</th>
+                <th>Distance</th>
+                <th>Status</th>
+            </tr>
+        </table>
+    </div>
+
+    <!-- MAP -->
+    <div class="map-card">
+        <h2>📍 ATM Map View</h2>
+        <div class="legend">
+            🟢 Available &nbsp; 🔴 Low Cash &nbsp; 🔵 You
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <button class="logout" onclick="window.location.href='{{ url_for('logout') }}'">Logout</button>
+
+</div>
+
+<!-- Leaflet JS (MUST be before main.js) -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<!-- User Dashboard JS -->
+<script src="{{ url_for('static', filename='user_dashboard.js') }}"></script>
+
+</body>
+</html>

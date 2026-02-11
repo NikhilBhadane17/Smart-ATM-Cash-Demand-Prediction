@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ATM Cash Prediction Dashboard</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='admin.css') }}">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+</head>
+<body class="admin-dashboard">
+
+<div class="admin-page">
+    <!-- HEADER -->
+    <div class="admin-header">
+        <div class="title-wrap">
+            <div class="atm-badge">ATM</div>
+            <div>
+                <h1>ATM Cash Demand Prediction Dashboard</h1>
+                <p>Smart Cash Management Using Machine Learning System</p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <input type="text" id="searchATM" placeholder="🔍 Search ATM or Location">
+            <span class="update-time">Last updated: <b id="time"></b></span>
+        </div>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="kpi-grid">
+        <div class="kpi-card blue">
+            <div class="kpi-title">Total ATMs</div>
+            <div class="kpi-value" id="totalATMs">0</div>
+            <div class="kpi-sub">In High Demand Areas</div>
+        </div>
+        <div class="kpi-card green">
+            <div class="kpi-title">ATMs Needing Refill</div>
+            <div class="kpi-value" id="lowATMs">0</div>
+            <div class="kpi-sub">Cash Needed</div>
+        </div>
+        <div class="kpi-card yellow">
+            <div class="kpi-title">Total Refill Required</div>
+            <div class="kpi-value" id="totalRefill">₹0</div>
+            <div class="kpi-sub">Overall Cash Needed</div>
+        </div>
+   
+        <div class="kpi-card orange">
+            <div class="kpi-title">Cash Demand Forecast</div>
+            <div class="kpi-chart">
+                <canvas id="cashChart"></canvas>
+            </div>
+            
+        </div>    
+    </div>
+
+    <div class="admin-grid">
+        <!-- LEFT COLUMN: Table -->
+        <div class="panel">
+            <div class="panel-header">ATM Refill Alerts</div>
+            <div class="panel-body atm-table-wrapper">
+                <table id="atmTable">
+    <tr>
+        <th>ATM ID</th>
+        <th>Location</th>
+        <th>Current Cash</th>
+        <th>Prediction</th>
+        <th>Refill Amount</th> <!-- ✅ ADD -->
+        <th>Status</th>
+    </tr>
+</table>
+
+            </div>
+            </div>
+
+        <!-- MIDDLE COLUMN: High demand + Map -->
+            <div class="panel">
+            <div class="panel-header">ATM Locations with Refill Alerts</div>
+            <div class="panel-body map-box">
+                <div id="adminMap"></div>
+              <div class="map-legend">
+                <span class="legend urgent">🔴 Refill Urgent (ALERT)</span>
+                <span class="legend warn">🟠 Refill Required (Low)</span>
+                <span class="legend normal">🟢 Safe (OK)</span>
+</div>
+ </div>
+    </div>
+
+       <!-- RIGHT COLUMN: Alerts -->
+<div class="panel">
+    <div class="panel-header">Recent Alerts</div>
+    <div class="panel-body">
+        <!-- Recent Alerts will be injected by JS -->
+        <div id="recentAlerts"></div>
+    </div>
+</div>
+
+
+<!-- Chart JS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='admin_dashboard.js') }}"></script>
+
+</body>
+</html>
