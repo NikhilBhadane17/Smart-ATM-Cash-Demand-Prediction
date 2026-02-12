@@ -26,38 +26,77 @@
     </style>
 </head>
 <body>
+<div class="user-wrap">
 
-<div class="container">
+    <header class="user-hero">
+        <div>
+            <h1>👤 User ATM Dashboard</h1>
+            <p class="subtitle">Smart ATM Cash Availability Near You</p>
+        </div>
+        <button class="btn ghost" onclick="window.location.href='{{ url_for('logout') }}'">Logout</button>
+    </header>
 
-    <h1>👤 User ATM Dashboard</h1>
-    <p class="subtitle">Smart ATM Cash Availability Near You</p>
-
-    <!-- SEARCH -->
-    <div class="top-bar">
-        <input type="text" id="searchATM" placeholder="🔍 Search ATM / Location">
+    <div class="user-search">
+        <input type="text" id="searchATM" placeholder="Search ATM or Location">
+        <span class="hint">Live map updates with nearest ATMs</span>
     </div>
 
-    <!-- INFO CARDS -->
-    <div class="cards">
-        <div class="card gradient">
-            <h3>📍 Nearest ATM</h3>
-            <p id="nearestATM">---</p>
+    <section class="user-cards">
+        <div class="pill-card pill-blue">
+            <div class="pill-icon">📍</div>
+            <div class="pill-meta">
+                <p class="pill-label">Nearest ATM</p>
+                <p class="pill-value"><span id="nearestATMName">---</span> <span class="muted" id="nearestATMDistance">--</span></p>
+            </div>
         </div>
 
-        <div class="card gradient-green">
-            <h3>💰 Cash Status</h3>
-            <p id="cashStatus">---</p>
+        <div class="pill-card pill-green">
+            <div class="pill-icon">💰</div>
+            <div class="pill-meta">
+                <p class="pill-label">Cash Status</p>
+                <p class="pill-value" id="cashStatus">---</p>
+            </div>
         </div>
 
-        <div class="card gradient-orange">
-            <h3>⏰ Best Time</h3>
-            <p>10 AM – 12 PM</p>
+        <div class="pill-card pill-amber">
+            <div class="pill-icon">⏰</div>
+            <div class="pill-meta">
+                <p class="pill-label">Best Time</p>
+                <p class="pill-value">10 AM – 12 PM</p>
+            </div>
         </div>
-    </div>
+    </section>
 
-    <!-- ATM TABLE -->
-    <div class="table-card">
-        <h2>Nearby ATMs</h2>
+    <section class="map-grid">
+        <div class="map-panel">
+            <div class="panel-head">
+                <div class="panel-title">ATM Map View</div>
+                <div class="panel-sub">Available, Low Cash, You</div>
+            </div>
+            <div id="map" class="map-frame"></div>
+            <div class="map-legend">
+                <span class="legend-dot green"></span> Available
+                <span class="legend-dot red"></span> Low Cash
+                <span class="legend-dot blue"></span> You
+            </div>
+        </div>
+
+        <aside class="side-panel">
+            <div class="panel-head">
+                <div class="panel-title">ATM Map View</div>
+                <div class="panel-sub">Sorted by distance</div>
+            </div>
+            <div id="atmListSummary" class="atm-list"></div>
+            <button class="btn primary full">View All ATMs</button>
+            <div class="notice">ATM demand often increases after 6 PM</div>
+        </aside>
+    </section>
+
+    <section class="table-card">
+        <div class="panel-head">
+            <div class="panel-title">ATM Map View</div>
+            <div class="panel-sub">Detailed availability</div>
+        </div>
         <table id="atmTable">
             <tr>
                 <th>ATM ID</th>
@@ -66,18 +105,7 @@
                 <th>Status</th>
             </tr>
         </table>
-    </div>
-
-    <!-- MAP -->
-    <div class="map-card">
-        <h2>📍 ATM Map View</h2>
-        <div class="legend">
-            🟢 Available &nbsp; 🔴 Low Cash &nbsp; 🔵 You
-        </div>
-        <div id="map"></div>
-    </div>
-
-    <button class="logout" onclick="window.location.href='{{ url_for('logout') }}'">Logout</button>
+    </section>
 
 </div>
 

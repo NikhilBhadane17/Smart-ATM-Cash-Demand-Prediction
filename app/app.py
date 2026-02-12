@@ -167,93 +167,130 @@ def load_aggregate_timeseries(window_history=7, window_future=7):
 
 
 def load_atm_locations_with_predictions():
-    """Return ATM rows enriched with model predictions when possible."""
+    """Return ATM rows enriched with predictions, DB cash, and real coordinates."""
+
+    def _to_cash(value):
+        """Normalize cash to rupees; dataset values are often 0–1."""
+        try:
+            cash_val = float(value)
+        except (ValueError, TypeError):
+            return 0.0
+        return cash_val * MAX_CASH if cash_val <= 1 else cash_val
+
+    # Load latest DB values if available (used for cash/pred/status)
+    db_rows = {}
+    db = None
+    try:
+        db = get_db()
+        rows = execute_query(
+            db,
+            "SELECT atm_id, location, current_cash, prediction, status FROM atm_data",
+            fetchall=True,
+        )
+        if isinstance(rows, list):
+            for r in rows:
+                atm_key = str(r.get('atm_id') or r.get('id') or '').strip()
+                if atm_key:
+                    db_rows[atm_key] = r
+    except Exception:
+        db_rows = db_rows  # Leave empty on DB issues
+    finally:
+        try:
+            if db:
+                db.close()
+        except Exception:
+            pass
+
+    # Load dataset for locations/coords
     csv_path = os.path.join(base_dir, 'dataset', 'final_atm_location_model_ready.csv')
-    if not os.path.exists(csv_path):
+    dataset_rows = []
+    if os.path.exists(csv_path):
+        try:
+            with open(csv_path, newline='', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    dataset_rows.append(row)
+        except (OSError, IOError, csv.Error):
+            dataset_rows = []
+
+    if not dataset_rows and not db_rows:
         return []
 
-    rows = []
-    try:
-        with open(csv_path, newline='', encoding='utf-8') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                rows.append(row)
-    except (OSError, IOError, csv.Error):
-        return []
+    LAT_MIN, LAT_MAX = 21.30, 21.40
+    LON_MIN, LON_MAX = 74.85, 74.95
 
     enriched = []
-    for row in rows:
-        atm_id = row.get('atm_id') or row.get('id') or 'UNKNOWN'
-        try:
-            current_cash = float(row.get('current_cash') or row.get('cash') or 0)
-        except (ValueError, TypeError):
-            current_cash = 0.0
+    # Prefer dataset rows for coordinates; fall back to DB-only rows if dataset missing
+    source_rows = dataset_rows if dataset_rows else [dict(v) for v in db_rows.values()]
 
-        # Predict using minimal inputs; fall back to attach_prediction if it fails
-        try:
-           lag_1_norm = current_cash / MAX_CASH
-           
-           pred = predict_demand(
-                lag_1=lag_1_norm,
-                day_of_week=datetime.utcnow().weekday(),
-                is_holiday=0,
-                atm_id=atm_id,
-)
+    for row in source_rows:
+        atm_id = str(row.get('atm_id') or row.get('id') or row.get('atm') or 'UNKNOWN').strip()
+        if not atm_id:
+            atm_id = 'UNKNOWN'
 
-        except Exception:
-            pred = None
+        db_row = db_rows.get(atm_id, {})
 
-        out_row = dict(row)
-
-        # ================= FIX MAP COORDINATES =================
-        try:
-            lat_norm = float(row.get('latitude') or 0)
-            lon_norm = float(row.get('longitude') or 0)
-        except (ValueError, TypeError):
-            lat_norm = 0
-            lon_norm = 0
-
-# Shirpur area bounding box (approx)
-        LAT_MIN, LAT_MAX = 21.30, 21.40
-        LON_MIN, LON_MAX = 74.85, 74.95
-
-# de-normalize (0–1 → real coordinates)
-        out_row['latitude'] = LAT_MIN + lat_norm * (LAT_MAX - LAT_MIN)
-        out_row['longitude'] = LON_MIN + lon_norm * (LON_MAX - LON_MIN)
-# =======================================================
-
-
-        # skip ATMs without valid coordinates
-        if out_row['latitude'] == 0 or out_row['longitude'] == 0:
-            continue
-
-        # ensure latitude & longitude for map
-        try:
-            out_row['latitude'] = float(
-                row.get('latitude') or row.get('lat') or 0
-    )
-            out_row['longitude'] = float(
-                row.get('longitude') or row.get('lon') or row.get('lng') or 0
-    )
-        except (ValueError, TypeError):
-            out_row['latitude'] = 0
-            out_row['longitude'] = 0
-
-        out_row['location'] = (
-            row.get('location')
+        # Location
+        location = (
+            db_row.get('location')
+            or row.get('location')
             or row.get('atm_name')
             or row.get('place')
             or row.get('bank_name')
             or "Unknown Location"
         )
 
-        if pred is not None:
-            predicted_cash = float(pred) * MAX_CASH
-            out_row['prediction'] = round(predicted_cash)
-            out_row['refill_amount'] = max(0, MAX_CASH - out_row['prediction'])
-            out_row['status'] = "ALERT" if out_row['prediction'] < LOW_CASH_THRESHOLD else "OK"
-            
-            attach_prediction(out_row)
+        # Cash: prefer DB; fall back to dataset (denormalized)
+        current_cash = _to_cash(db_row.get('current_cash'))
+        if current_cash == 0:
+            current_cash = _to_cash(row.get('current_cash') or row.get('cash') or row.get('currentcash'))
+
+        # Coordinates from normalized dataset values
+        lat = lon = None
+        try:
+            lat_norm = float(row.get('latitude') or row.get('lat') or row.get('Latitude') or 0)
+            lon_norm = float(row.get('longitude') or row.get('lon') or row.get('lng') or row.get('Longitude') or 0)
+            lat = LAT_MIN + lat_norm * (LAT_MAX - LAT_MIN)
+            lon = LON_MIN + lon_norm * (LON_MAX - LON_MIN)
+        except (ValueError, TypeError):
+            lat = lon = None
+
+        # Prediction
+        try:
+            lag_1_norm = current_cash / MAX_CASH if current_cash > 0 else 0
+            pred_norm = predict_demand(
+                lag_1=lag_1_norm,
+                day_of_week=datetime.utcnow().weekday(),
+                is_holiday=0,
+                atm_id=atm_id,
+            )
+            predicted_cash = float(pred_norm) * MAX_CASH
+        except Exception:
+            predicted_cash = _to_cash(db_row.get('prediction'))
+            if predicted_cash == 0:
+                predicted_cash = current_cash * 0.9
+
+        status = (db_row.get('status') or "").upper()
+        if not status:
+            status = "ALERT" if current_cash < LOW_CASH_THRESHOLD else "OK"
+        if status.startswith('LOW') or status == 'ALERT':
+            status = 'ALERT'
+        elif status not in ('ALERT', 'OK'):
+            status = 'OK'
+
+        out_row = {
+            "atm_id": atm_id,
+            "location": location,
+            "current_cash": round(current_cash),
+            "prediction": round(predicted_cash),
+            "refill_amount": max(0, MAX_CASH - current_cash),
+            "status": status,
+        }
+
+        if lat is not None and lon is not None and lat != 0 and lon != 0:
+            out_row['latitude'] = lat
+            out_row['longitude'] = lon
+
         enriched.append(out_row)
 
     return enriched
@@ -454,30 +491,8 @@ def api_atms():
 
 @app.route("/api/atms_public")
 def api_atms_public():
-    db = get_db()
-    try:
-        rows = execute_query(
-            db,
-            "SELECT atm_id, location, current_cash, prediction, status FROM atm_data",
-            fetchall=True
-        )
-        # add small random perturbation to prediction for variability
-        if isinstance(rows, list):
-            for row in rows:
-                try:
-                    base = int(row.get('prediction', 0) or 0)
-                    row['prediction'] = max(0, base + random.randint(-3000, 3000))
-                except (ValueError, TypeError):
-                    # leave prediction as-is on error
-                    pass
-
-        if isinstance(rows, list):
-            for row in rows:
-                attach_prediction(row)
-
-        return jsonify(rows)
-    finally:
-        db.close()
+    data = load_atm_locations_with_predictions()
+    return jsonify(data)
 
 
 @app.route('/api/avg_prediction')
